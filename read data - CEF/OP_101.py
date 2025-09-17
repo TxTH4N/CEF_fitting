@@ -2,36 +2,18 @@ import numpy as np
 import matplotlib.pyplot as plt
 import PyCrystalField as cef
 from scipy.optimize import curve_fit
+from lmfit import Model, Parameters
 
 
-# data = np.genfromtxt('data.txt', skip_header=1, unpack=True)
-# tem = data[0]
-# S = data[1]
-# cmag = data[2]
+def linear_bg(x, slope, intercept):
+    y = slope * x + intercept
+    return y
 
-# fig1, ax1 = plt.subplots()
-# # ax1.plot(tem,S,marker='.',markersize=2)
-# ax1.plot(np.log10(tem),S,marker='.',markersize=2)
-# ax1.set_xlabel("$log_{10}T$")
-# ax1.set_ylabel("S/R")
-# ax1.hlines(np.log(2),xmin=0,xmax=2,linestyles='--',color='red')
-# ax1.hlines(np.log(13),xmin=0,xmax=2,linestyles='--',color='green')
-# ax1.set_xlim(left=0,right=2)
-# ax1.set_ylim(bottom=0,top =3)
 
-# fig2, ax2 = plt.subplots()
-# ax2.plot(tem,S,marker='.',markersize=2)
-# ax2.set_xlabel("T$(K)$")
-# ax2.set_ylabel("S/R")
-# ax2.hlines(np.log(2),xmin=min(tem),xmax=max(tem),linestyles='--',color='red')
-# ax2.set_xlim(left=0,right =10)
-# ax2.set_ylim(bottom=0,top =np.log(2)+0.2)
+def lorentzian(x, amplitude, mean, gamma):
+    y = amplitude / np.pi * 0.5 * gamma / ((x - mean) ** 2 + (0.5 * gamma) ** 2)
+    return y
 
-# fig3, ax3 = plt.subplots()
-# # ax1.plot(tem,S,marker='.',markersize=2)
-# ax3.plot(tem,cmag,marker='.',markersize=2)
-# ax3.set_xlabel("$T$ (K)")
-# ax3.set_ylabel("$C_{p}$")
 
 def load_data(path, file):
     # file ='/Users/tianxionghan/research/CrystalFieldCal/data/ASCII_file/Ei3p32_T1p7.iexy'
@@ -50,8 +32,10 @@ def load_data(path, file):
     print('Read data in the shape of {} in e and {} in q'.format(len(e), len(q)))
     return q, e, data, mii2, mdI2
 
+
 def contourPlot(q, e, int, int_ran):
-    fig, ax = plt.subplots(figsize = (4,3))
+    # fig, ax = plt.subplots(figsize = (4,3))
+    fig, ax = plt.subplots(figsize=(12, 4))
     cp = ax.pcolormesh(q, e, int, cmap='jet', vmin=int_ran[0], vmax=int_ran[1])
     fig.colorbar(mappable=cp)
     ax.vlines(min(q_range), ymin=min(e_range), ymax=max(e_range), ls='--', color='r')
@@ -60,6 +44,28 @@ def contourPlot(q, e, int, int_ran):
     ax.hlines(max(e_range), xmin=(min(q_range)), xmax=(max(q_range)), ls='--', color='r')
     # fig.show()
     return fig, ax
+
+
+def disp(q, e, ii, di, Q_range, E_range, sumE=False):
+    q_ind = np.where(np.logical_and(q >= Q_range[0], q <= Q_range[1]))[0]  ## get q bin index
+    e_ind = np.where(np.logical_and(e >= E_range[0], e <= E_range[1]))[0]
+    ex = np.array([ei for ei in e[e_ind]])
+    qx = np.array([qi for qi in q[q_ind]])
+    IIMat = ii[e_ind, :][:, q_ind]
+    errMat = di[e_ind, :][:, q_ind]
+    if sumE is False:
+        sumII = np.nanmean(IIMat, axis=1)
+        err_sq = np.nansum(np.square(errMat), axis=1)
+        n = np.sum(1 - np.isnan(errMat), axis=1)
+        err = np.sqrt(err_sq) / n
+        return ex, sumII, err
+    elif sumE is True:
+        sumII = np.nanmean(IIMat, axis=0)
+        err_sq = np.nansum(np.square(errMat), axis=0)
+        n = np.sum(1 - np.isnan(errMat), axis=0)
+        err = np.sqrt(err_sq) / n
+        return qx, sumII, err
+
 
 def int(q, e, ii, di, Q_range, E_range):
     q_ind = np.where(np.logical_and(q >= Q_range[0], q <= Q_range[1]))[0]  ## get q bin index
@@ -74,48 +80,92 @@ def int(q, e, ii, di, Q_range, E_range):
     err = np.sqrt(np.nansum(err_sq))
     return sum, err
 
-path = '../data/ASCII_file/'
-# q_range = [1.42, 1.55]  ## q bin range
+
+path = '../data/ASCII_file/Q0p01/'
+q_range = [1.42, 1.55]  ## q bin range
+# q_range = [1.8,2]
 # q_range = [1.3, 1.42]
-q_range = [1.3, 1.42]
+
 e_range = [-0.15, 0.15]  ## plot range
-Ei='3p32'
+Ei = '3p32'
 # bg_10K = 'Ei{}_T{}.iexy'.format(Ei, 10)
 # q_bg, e_bg, data_bg, mask_i_bg, mask_di_bg = load_data(path, bg_10K)
 # sumII, err = int(q_bg, e_bg, mask_i_bg, mask_di_bg, q_range, e_range)
 # print(sumII)
 
-file_list=['1p7',3,4,5,6,8,10,20]
-tem = [1.7,3,4,5,6,8,10,20]
-ii_list=[]
-err_list=[]
+file_list = [0.25, 1.5, 1.7, 3, 3.5, 3.7, 4, 5, 6]
+ii_list = []
+err_list = []
+fig, ax = plt.subplots()
+II = []
+II_err = []
+
 for idx, T in enumerate(file_list):
-    file = 'Ei{}_T{}.iexy'.format('3p32', T)
+    temp_str = str(T)
+    if '.' in temp_str:
+        temp_str = temp_str.replace('.', 'p')
+    file = 'Ei{}_T{}.iexy'.format('3p32', temp_str)
     q, e, data, mask_i, mask_di = load_data(path, file)
-    sumII, err = int(q, e, mask_i, mask_di, q_range, e_range)
-    ii_list.append(sumII)
-    err_list.append(err)
-fig,ax = plt.subplots()
-ax.errorbar(tem, ii_list, err_list, marker='.', ls='none', fmt='o-', mfc='None', label='data')
-ax.set_xlabel('T (K)',fontsize=15)
-ax.set_ylabel('II (a.u.)',fontsize=15)
-ax.set_title('Integrated intensity on (1 0 1)',fontsize=15)
+
+    config, conax = contourPlot(q, e, mask_i, [0, 10])
+    conax.set_ylim(bottom=-0.2, top=0.2)
+    conax.set_xlim(left=1.2, right=2.4)
+
+    # sumII, err = int(q, e, mask_i, mask_di, q_range, e_range)
+    # ii_list.append(sumII)
+    # err_list.append(err)
+    qx, sumII_q, err_q = disp(q, e, mask_i, mask_di, q_range, e_range, sumE=True)
+    ax.errorbar(qx, sumII_q, yerr=err_q, fmt='o')
+
+    if idx >= 7:
+        II.append(0)
+        II_err.append(0)
+        continue
+    # Fit the spectrum below
+    fit_range = [1.42, 1.55]
+    plot_x_range = np.linspace(fit_range[0], fit_range[1], 100)
+    num_of_peaks = 1
+    ind = np.where(np.logical_and(qx >= fit_range[0], qx <= fit_range[1]))[0]
+    x_fit = np.array([i for i in qx[ind]])
+    y_fit = np.array([i for i in sumII_q[ind]])
+    err_fit = np.array([i for i in err_q[ind]])
+    fmod = Model(linear_bg, prefix='bg_')
+    for i in range(num_of_peaks):
+        fmod += Model(lorentzian, prefix='p{}_'.format(i + 1))
+    params = fmod.make_params()
+    print('************************************')
+    print('----------Start fitting----------')
+    params['bg_slope'].set(0.1)
+    params['bg_intercept'].set(0.1)
+    # print(params.__dir__())
+    for i in range(num_of_peaks):
+        params['p{}_amplitude'.format(i + 1)].set(0.2, min=0)
+        params['p{}_mean'.format(i + 1)].set(1.5)
+        # params['p{}_fwhm'.format(i + 1)].set(0.3)
+        params['p{}_gamma'.format(i + 1)].set(0.1)
+    result = fmod.fit(y_fit, params, x=x_fit, weights=1 / err_fit)
+    # result = fmod.fit(y_fit, params, x=x_fit)
+    print(result.fit_report(min_correl=0.25))
+    comps = result.eval_components(x=x_fit)
+    print('----------Fitting is done!----------')
+    print('----------↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓----------')
+    fit_params = []
+    for name, par in result.params.items():
+        print("  %s: value=%f +/- %f " % (name, par.value, par.stderr))
+        fit_params.append(par.value)
+    ax.plot(x_fit, result.best_fit, linestyle='--', color='pink')
+    ax.plot(plot_x_range, linear_bg(plot_x_range, *fit_params[:2]) + lorentzian(plot_x_range, *fit_params[2:5]))
+    II.append(result.result.params['p1_amplitude'].value)
+    II_err.append(result.result.params['p1_amplitude'].stderr)
+print()
+print(II)
+print(II_err)
+
+fig, ax = plt.subplots()
+ax.errorbar(file_list, II, II_err, marker='.', ls='none', fmt='o-', mfc='None', label='data')
+ax.set_xlabel('T (K)', fontsize=15)
+ax.set_ylabel('II (a.u.)', fontsize=15)
+ax.set_title('Integrated intensity on (1 0 1)', fontsize=15)
 ax.tick_params(axis='both', labelsize=13)
 
-# plt.savefig("order parameter (1 0 1).png",dpi=300)
-plt.savefig("order parameter (1 0 0).png",dpi=300)
-
-
-
-
-# data = data-data_bg
-# mask_i = mask_i-mask_i_bg
-# mask_di = mask_di-mask_di_bg
-config, conax = contourPlot(q, e, mask_i, [0,10])
 plt.show()
-
-print(ii_list)
-
-data = np.column_stack([tem,ii_list,err_list])
-datafile_path = "/your/data/output/directory/datafile.txt"
-np.savetxt('intensity.txt', data,fmt='%.2f',header='Temperature    II   uncertainty')

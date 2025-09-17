@@ -191,6 +191,7 @@ ax1.errorbar(x_e, sumII_q, err_q, marker='.', ls='none', fmt='o-', mfc='None', l
 ax1.set_xlabel('$\\hbar \\omega$ (meV)')
 ax1.set_ylabel('$\\rm I$ (a.u.)')
 ax1.set_title('Energy dispersion')
+ax1.set_ylim(bottom=0,top =0.01)
 # ax1.scatter(x_e,exp_dec(x_e,0.005,0.5,0.0))
 # ##--------------------------------------------------
 text = ''
@@ -338,7 +339,7 @@ for B66 in B66List:
     TVS = cry_fie_cal(Bdictionary)
     xx = np.linspace(0,12,1000)
 
-    sim_int_40 = 0.0005 * TVS.normalizedNeutronSpectrum(xx, Temp=30, ResFunc=ins_res_12)
+    sim_int_40 = 0.0005 * TVS.normalizedNeutronSpectrum(xx, Temp=30, ResFunc=ins_res_3p32)
     ax3.plot(xx, sim_int_40, label='parameter1_40K_B66{}'.format(B66), marker='.',markersize=2)
     # ax3.set_xlim(left=0.25,right=2)
     # ax3.set_ylim(bottom=-1e-4,top=5e-3)

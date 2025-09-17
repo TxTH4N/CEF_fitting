@@ -219,7 +219,8 @@ Ei = 3.32
 # T = 1.7
 # T_list = [3,8,10,20,30]
 # T_list = ['1p7',3,4,5,8,10,20]
-T_list = ['1p7']
+# T_list = ['1p7']
+T_list = [30,40,60]
 energeRange = [0, 10]
 q_range = [0.6, 1.8]  ## q bin range
 e_range = [0.29, 2.4]  ## plot range
@@ -233,7 +234,7 @@ for i_T,T in enumerate(T_list):
     q, e, data, mask_i, mask_di = load_data(path, file)
     x_e, sumII_q, err_q = disp(q, e, mask_i, mask_di, q_range, e_range)
     if i_T==0:
-        ax1.errorbar(x_e, sumII_q, err_q, marker='.', ls='-', fmt='o-', label='T = 1.7K')
+        ax1.errorbar(x_e, sumII_q, err_q, marker='.', ls='-', fmt='o-', label='T = {}K'.format(T))
         # ax1.errorbar(x_e, sumII_q, err_q, marker='.', ls='-', fmt='o-', label='T = 3K')
     else:
         ax1.errorbar(x_e, sumII_q, err_q, marker='.', ls='-', fmt='o-', label='T = {}K'.format(T))
@@ -246,7 +247,7 @@ ax1.set_ylabel('$\\rm I$ (a.u.)',fontsize=15)
 # ax1.set_title('Energy dispersion',fontsize=10)
 # ax1.set_xlim(left=1,right=2)
 ax1.set_xlim(left=0.3,right=2.4)
-ax1.set_ylim(bottom = 0, top =0.004)
+# ax1.set_ylim(bottom = 0, top =0.004)
 # ax1.set_ylim(bottom=0, top=0.005)
 
 # ax2.set_xlabel('$\\Delta E$ (meV)', fontsize=10)

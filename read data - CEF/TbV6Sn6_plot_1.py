@@ -159,14 +159,14 @@ for idx, measurement_12 in enumerate(data_list_12):
     mask_i = measurement_12.mI
     mask_di = measurement_12.mdI
 
-    # config, conax = plt.subplots()
-    # cp = conax.pcolormesh(q, e, mask_i, cmap='jet', vmin=energeRange[0], vmax=energeRange[1])
-    # config.colorbar(mappable=cp)
-    # conax.set_xlabel("Q $(Å^{-1})$")
-    # conax.set_ylabel("$\\hbar \\omega$ (meV)")
-    # conax.hlines(3, xmin=(min(q)), xmax=(max(q)), ls='--', color='yellow')
-    # conax.set_ylim(bottom=-0.5)
-    # conax.set_xlim(right=4.5)
+    config, conax = plt.subplots()
+    cp = conax.pcolormesh(q, e, mask_i, cmap='jet', vmin=energeRange[0], vmax=energeRange[1])
+    config.colorbar(mappable=cp)
+    conax.set_xlabel("Q $(Å^{-1})$")
+    conax.set_ylabel("$\\hbar \\omega$ (meV)")
+    conax.hlines(3, xmin=(min(q)), xmax=(max(q)), ls='--', color='yellow')
+    conax.set_ylim(bottom=-0.5)
+    conax.set_xlim(right=4.5)
 
     x_e_12, sumII_q_12, err_q_12 = disp(q, e, mask_i, mask_di, q_range, e_range_h1)
     # slope = (sumII_q_12[-1] - sumII_q_12[0]) / (x_e_12[-1] - x_e_12[0])
@@ -303,9 +303,12 @@ print(TVS.B)
 ## Fit to neutron data
 # FitCoefRes1 = TVS.fitdata(chisqfunc=err_global, fitargs=['prefactor','coeff','ratio'],
 #                         prefactor=prefactor, coeff=TVS.B,ratio=rat)
-FitCoefRes1={'prefactor': np.array([0.00336237]), 'coeff': np.array([-1.04030384e-01, -5.91118442e-04,  2.31365750e-06, -3.30687620e-06]),'ratio': np.array([1.201]), 'Chisq': 1.515122616300393}
+# FitCoefRes1={'prefactor': np.array([0.00336237]), 'coeff': np.array([-1.04030384e-01, -5.91118442e-04,  2.31365750e-06, -3.30687620e-06]),'ratio': np.array([1.201]), 'Chisq': 1.515122616300393}
 # FitCoefRes1={'prefactor': np.array([0.00350270]), 'coeff': np.array([-0.10383753193619379, -0.0005926446761967422, 2.315727674737092e-06, 3.306853608959591e-06]),'ratio': np.array([1.18]), 'Chisq': 1.515122616300393}
-# FitCoefRes1 = {'prefactor': np.array([0.00334849]), 'coeff': np.array([-1.15101643e-01, -5.57e-04,  2.31e-06,  2.25e-05]),  'ratio': np.array([1.36]), 'Chisq': 0.0004937771065236914}
+FitCoefRes1 = {'prefactor': np.array([0.00334849]), 'coeff': np.array([-1.15101643e-01, -5.57e-04,  2.31e-06,  2.25e-05]),  'ratio': np.array([1.36]), 'Chisq': 0.0004937771065236914}
+
+# FitCoefRes1 = {'prefactor': np.array([0.00334849]), 'coeff': np.array([-1.1e-01, -5.7e-04,  2.31e-06,  1e-05]),  'ratio': np.array([1.36]), 'Chisq': 0.0004937771065236914}
+
 
 ### test below###
 # FitCoefRes1={'prefactor': np.array([0.00336237]), 'coeff': np.array([-1.08e-01, -5.9e-04,  2.31365750e-06, -3.30687620e-06]),'ratio': np.array([1.201]), 'Chisq': 1.515122616300393}
@@ -316,6 +319,7 @@ print(FitCoefRes1)
 # TVS.newCoeff(FitCoefRes1['coeff'])
 # TVS.newCoeff([-1.03626951e-01, -5.94046786e-04,  2.32326048e-06, -2.10712431e-06])
 TVS.diagonalize()  # Hamiltonian=field_H)
+
 
 
 ###### Plot result
@@ -330,7 +334,7 @@ figs, axes = plt.subplots(figsize=(6,3))
 for idx, t in enumerate(t_list):
     # FittedSpectrum = TVS.normalizedNeutronSpectrum(comb_e, Temp=t, ResFunc=ins_res) * FitCoefRes1['prefactor']
     FittedSpectrum =spectrum(TVS,x_e_12, Temp=t,ResFunc=ins_res_12,gamma=gamma_12[idx]) * FitCoefRes1['prefactor']
-    FittedSpectrum2 = FitCoefRes1['ratio']*spectrum(TVS,x_e_3, Temp=t,ResFunc=ins_res_3p32,gamma=0) * FitCoefRes1['prefactor']
+    FittedSpectrum2 = FitCoefRes1['ratio']*spectrum(TVS,x_e_3, Temp=t,ResFunc=ins_res_3p32,gamma=gamma_3[idx]) * FitCoefRes1['prefactor']
     axes.errorbar(x_e_12,  int_12_list[idx],yerr=un_12_list[idx], marker='.', ls='none', label='{} K'.format(t), color="C{}".format(idx))
     axes.errorbar(x_e_3, int_3p32_list[idx],yerr=un_3p32_list[idx], marker='.', ls='none', color="C{}".format(idx))
     # axes.errorbar(int_12_list[idx],x_e_12, xerr=un_12_list[idx], marker='.', ls='none', label='{} K'.format(t), color="C{}".format(idx))
@@ -375,5 +379,19 @@ plt.tight_layout()
 
 # plt.savefig("../plots/comb_cut_setII",dpi=300)
 plt.show()
+print(TVS.eigenvalues)
 
-TVS.printLaTexEigenvectors()
+fig,ax= plt.subplots(figsize=(4,6))
+for idx,eng in enumerate(TVS.eigenvalues):
+    ax.hlines(y=eng,xmin=0,xmax=1,colors='C{}'.format(idx))
+y1, y2 = TVS.eigenvalues[0],TVS.eigenvalues[2]
+x_pos = 0.2
+ax.annotate("", xy=(x_pos, y2), xytext=(x_pos, y1),
+            arrowprops=dict(arrowstyle="<->", color='red', lw=1.5))
+ax.text(x_pos + 0.05, (y1 + y2) / 2, r'$\Delta E$', fontsize=15, verticalalignment='center',color ='red')
+
+ax.xaxis.set_visible(False)
+ax.tick_params(axis='y', labelsize=20)
+ax.set_ylabel('CEF Energy (meV)',fontsize=20)
+plt.tight_layout()
+plt.show()

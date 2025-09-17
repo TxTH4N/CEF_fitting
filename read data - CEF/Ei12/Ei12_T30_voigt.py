@@ -22,11 +22,12 @@ def cry_fie_cal(Bdictionary):
 
 
 def load_data(path, file):
-    # file ='/Users/tianxionghan/research/CrystalFieldCal/data/ASCII_file/Ei3p32_T1p7.iexy'
+    # ##adjust the skip_header accordingly
     data = np.genfromtxt(path + file, skip_header=1, unpack=True)
     q = np.unique(data[2])
     e = np.unique(data[3])
     n = len(e)
+    # ## mask the empty data part
     mdata = np.ma.masked_where(data[0] == -1e+20, data[0])
     mdI = np.ma.masked_where(data[1] == -1, data[1])
     mii = np.transpose(np.array([mdata[i:i + n] for i in range(0, len(mdata), n)]))
@@ -46,6 +47,8 @@ def contourPlot(q, e, int, int_ran):
     ax.set_title("cplot_{}K_Ei{}".format(T, Ei))
     ax.set_xlabel("Q $(Å^{-1})$")
     ax.set_ylabel("$\\hbar \\omega$ (meV)")
+
+    # ## Mark the integrated area using a red box
     ax.vlines(min(q_range), ymin=min(e_range), ymax=max(e_range), ls='--', color='r')
     ax.vlines(max(q_range), ymin=min(e_range), ymax=max(e_range), ls='--', color='r')
     ax.hlines(min(e_range), xmin=(min(q_range)), xmax=(max(q_range)), ls='--', color='r')
@@ -55,7 +58,9 @@ def contourPlot(q, e, int, int_ran):
 
 
 def disp(q, e, ii, di, Q_range, E_range):
-    q_ind = np.where(np.logical_and(q >= Q_range[0], q <= Q_range[1]))[0]  ## get q bin index
+    # ## get q bin index
+    # ## sum the intensity along Q and have Intensity vs Energy.
+    q_ind = np.where(np.logical_and(q >= Q_range[0], q <= Q_range[1]))[0]
     e_ind = np.where(np.logical_and(e >= E_range[0], e <= E_range[1]))[0]
     ex = np.array([ei for ei in e[e_ind]])
     qx = np.array([qi for qi in q[q_ind]])
@@ -77,11 +82,6 @@ def gaussian(x, amplitude, mean, fwhm):
     return y
 
 
-# def voigt(x, amplitude, mean, fwhm, gamma):
-#     sigma = fwhm / (2 * np.sqrt(2 * np.log(2)))
-#     voi = amplitude * spf.voigt_profile(x - mean, sigma, gamma/2)     ### gamma is full-width
-#     return voi
-
 def voigt( x,amplitude, mean, fwhm, gamma):
     """ Return the Voigt line shape at x with Lorentzian component FWHM gamma
     and Gaussian component FWHM alpha."""
@@ -94,10 +94,12 @@ def exp_dec(x, a, beta, c):
     return y
 
 def lorentzian(x, amplitude, mean, gamma):
-    y = amplitude / np.pi*0.5*gamma/((x-mean)**2+(0.5*gamma)**2)    ### gamma is full-width
+    ### gamma is full-width
+    y = amplitude / np.pi*0.5*gamma/((x-mean)**2+(0.5*gamma)**2)
     return y
 
 # def multi_voi(x, *params):
+    # ## adding up mutliple Voigt function, not used
 #     a = params[0]
 #     beta = params[1]
 #     c = params[2]
@@ -112,6 +114,7 @@ def lorentzian(x, amplitude, mean, gamma):
 
 
 def multi_gaussian(x, *params):
+
     a = params[0]
     beta = params[1]
     c = params[2]
@@ -143,6 +146,7 @@ def fit_peak(x, y, err, p0, x_range=[-np.inf, np.inf], bounds=(0, np.inf), fitfu
 
 
 def add_uncertainty(numbers, uncertainties):
+    # ## generate a number with uncertainties in a (). Example 1.03(2)
     result = []
     for i, number in enumerate(numbers):
         uncertainty = uncertainties[i]
@@ -227,7 +231,7 @@ params['l2_gamma'].set(0.4)
 result = fmod.fit(y_fit, params, x=x_fit)
 # print(result.fit_report())
 ax1.plot(x_fit, result.best_fit)
-ax1.set_ylim(bottom = 0,top=0.02)
+# ax1.set_ylim(bottom = 0,top=0.02)
 comps = result.eval_components(x=x_fit)
 print('************************************')
 print('Fitting is done!')

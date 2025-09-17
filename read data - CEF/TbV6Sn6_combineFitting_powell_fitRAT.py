@@ -126,12 +126,6 @@ e_range_h1 = [3, 10]  ## plot range
 e_range_l = [0.2, 2.7]
 
 print(data_list_12[0].__dir__())
-# rat_list = [1.9662248916805452, 1.9881952766649167, 1.9991492029197095, 1.985101829103339]    ##Bragg peak (0 0 2)
-# rat_list = [1.5678698062123513, 1.557786839117861, 1.5517928090765991, 1.5317630316596096]  ##incoherent
-# lor_bg = [[8.803479, -0.670054, 0.001893, 0.000097],
-#           [3.944630, -0.204455, 0.001277, 0.000314],
-#           [4.078812, -0.169387, 0.001407, 0.000438],
-#           [2.890807, -0.139814, 0.002854, 0.000790]]
 lor_bg = [[4.590443, -0.710718, 0.004283, -0.000117],
           [3.587420, -0.094294, 0.000740, 0.000141],
           [0.749444, -0.043719, 0.003279, 0.000014],
@@ -177,6 +171,7 @@ for idx, measurement_12 in enumerate(data_list_12):
     mask_i = measurement_3.mI
     mask_di = measurement_3.mdI
 
+    # ### plot the countor plot for the data read
     # conax.pcolormesh(q, e, mask_i, cmap='jet', vmin=energeRange[0], vmax=energeRange[1])
     # conax.vlines(min(q_range), ymin=min(e_range_l), ymax=max(e_range_h), ls='--', color='r')
     # conax.vlines(max(q_range), ymin=min(e_range_l), ymax=max(e_range_h), ls='--', color='r')
@@ -203,29 +198,11 @@ for idx, measurement_12 in enumerate(data_list_12):
     # plt.legend()
     ### -----------uncertainty calculation------------
     ### -----12meV, linear background-----
-    # slope_un = np.sqrt(err_q_12[-1]**2+err_q_12[0]**2)/(x_e_12[-1] - x_e_12[0])
-    # intercept_un = np.sqrt(err_q_12[0]**2+(slope_un*x_e_12[0])**2)
-    # bg12_un = np.sqrt((x_e_12*slope_un)**2+intercept_un**2)
-    # un_12 = np.sqrt(err_q_12**2+bg12_un**2)
-    # un_12_list.append(un_12)
-    un_12_list.append(err_q_12 * np.sqrt(2))
+    # un_12_list.append(err_q_12 * np.sqrt(2))
+    un_12_list.append(err_q_12)
     ### -----3.32meV, lorentzian background-----
-    un_3p32_list.append(err_q_3*np.sqrt(2))
-# def fit_width(x):
-#     # y = +0.00030354 * x ** 3 + 0.0039009 * x ** 2 - 0.040862 * x + 0.11303
-#     if x < 0.5:
-#         y = 0.0567
-#     elif x < 1 and x >= 0.5:
-#         y = 0.2553
-#     elif x < 1.5 and x >= 1:
-#         y = 0.211
-#     elif x < 3 and x >= 1.5:
-#         y = 0.2267
-#     elif x < 6 and x >= 3:
-#         y = 0.403
-#     elif x >= 6:
-#         y = 0.306
-#     return y
+    # un_3p32_list.append(err_q_3*np.sqrt(2))
+    un_3p32_list.append(err_q_3)
 
 def ins_res_3p32(x):
     y = 0.00030354 * x ** 3 + 0.0039009 * x ** 2 - 0.040862 * x + 0.11303
@@ -235,14 +212,8 @@ def ins_res_12(x):
     y =  3.8775e-05 * x**3 +0.0018964 * x**2 -0.078275 * x +0.72305
     return y
 
-# gamma_3 = [0.281915, 0.1460, 0.150604, 0.1907]
-# gamma_12 = [0.160905, 0.119245, 0.1716035, 0.1978]
-
-# gamma_3 = [0.563855,0.166451, 0.225229,0.283669]
-# gamma_12 = [0.214231, 0.143924, 0.2075815, 0.253425]
 
 # ---------try with pycrystalfield-------
-
 prefactor =0.003
 
 # rat = 1.15
@@ -266,35 +237,50 @@ B40 = -5.58e-04
 B60 =2.31e-06
 B66 =2.5e-5
 
+# ## Feb 2025 fast test
+# rat = 1.3
+# B20 =-0.11
+# B40 = -5.7e-04
+# B60 =2.31e-06
+# B66 =1e-5
+
 
 Bdictionary = {'B20': B20, 'B40': B40,
                'B60': B60, 'B66': B66}
 TVS = cef.CFLevels.Bdict(ion, Bdictionary)
 
 muB = 0.05788
+# ## for Tb3+ ion below only
 mJ = np.diag([6, 5, 4, 3, 2, 1, 0, -1, -2, -3, -4, -5, -6])
 g = 3 / 2
 #     obj.H += g * muB  * mJ * field
 def err_global(CFLevelsObject, coeff, prefactor,ratio):
+    # ## fix any CEF parameters
     # coeff[0]=-0.12
+
+    # ## diagonalize the Hamiltonian if there is any guess of molecular field, change the field_guess above
+    # ## Doesn't fit field!
     CFLevelsObject.newCoeff(coeff)
     CFLevelsObject.H += g * muB  * mJ * (field_guess)
     CFLevelsObject.diagonalize()
+
     sigsq = 0
     for idx, t in enumerate(t_list):
         # CFLevelsObject.newCoeff(coeff)
         # CFLevelsObject.H += g * muB * mJ * (field_guess - idx * 0.1)
         # CFLevelsObject.diagonalize()
+        # ## Skip some bad fit
         # if idx != 2:
         #     continue
+        # ## add the spectrum together and with a ratio scaling different Ei.
         sigsq += np.sum((prefactor *spectrum(CFLevelsObject,x_e_12,Temp=t,ResFunc=ins_res_12,gamma=gamma_12[idx]) - int_12_list[idx]) ** 2)
         sigsq += np.sum((prefactor *ratio* spectrum(CFLevelsObject, x_e_3, Temp=t, ResFunc=ins_res_3p32, gamma=gamma_3[idx]) - int_3p32_list[idx]) ** 2)
     # excitation = ex_energy(CFLevelsObject)
     # sigsq += (excitation-4.896)**2
     return sigsq
 # ************************************************************
-
 print(TVS.B)
+
 ## Fit to neutron data
 FitCoefRes1 = TVS.fitdata(chisqfunc=err_global, fitargs=['prefactor','coeff','ratio'],
                         prefactor=prefactor, coeff=TVS.B,ratio=rat)
@@ -323,6 +309,7 @@ for idx, t in enumerate(t_list):
     # axes.plot(x_e_12, FittedSpectrum, label='fitted model', color="C1")
     # axes.plot(x_e_3, FittedSpectrum2, label='fitted model', color="C1")
 
+    # ### calculate the chi^2 for the fitting
     xi=np.append(x_e_3,x_e_12)
     cal = np.append(FittedSpectrum2, FittedSpectrum)
     obs = np.append(int_3p32_list[idx],  int_12_list[idx])
